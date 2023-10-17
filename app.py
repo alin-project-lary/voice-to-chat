@@ -1,45 +1,44 @@
 from flask import Flask, request, jsonify
 import requests
+from flask_cors import CORS  # Import the CORS module
+import openai
+import io
+from pydub import AudioSegment
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes in your Flask app
 
 # Configuration (Replace with your OpenAI API key)
-OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY'
+OPENAI_API_KEY = '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'
 
+def convert_blob_to_mp3(blob):
+    # Load blob into pydub
+    audio = AudioSegment.from_file(blob)
+
+    # Convert to MP3
+    mp3_buffer = io.BytesIO()
+    audio.export(mp3_buffer, format="mp3")
+    mp3_buffer.seek(0)
+    return mp3_buffer
 
 @app.route('/voice_to_chat', methods=['POST'])
+
 def voice_to_chat():
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        return jsonify(error='No file part'), 400
 
-    file = request.files['file']
+    try: 
+        openai.api_key = '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'
 
-    # Check if user did not select file
-    if file.filename == '':
-        return jsonify(error='No selected file'), 400
+        x = request.files['file']
 
-    # Check if the file is of audio type (simplified check)
-    if not (file.filename.endswith('.wav') or file.filename.endswith('.mp3')):
-        return jsonify(error='Invalid file type'), 400
+        transcript = openai.Audio.translate("whisper-1", convert_blob_to_mp3(x), response_format="vtt")
 
-    headers = {
-        'Authorization': f'Bearer {OPENAI_API_KEY}',
-        'Content-Type': 'application/x-www-form-urlencoded'
-    }
+        print(transcript)
+    except Exception as e:
+        print(e)
+        transcript = ''
 
-    # Note: Update the API endpoint to the correct Whisper API endpoint
-    response = requests.post(
-        'https://api.openai.com/v1/whisper/voice-to-text',
-        headers=headers,
-        data=file.read()
-    )
-
-    if response.status_code != 200:
-        return jsonify(error='Failed to transcribe audio'), 500
-
-    return jsonify(text=response.json()['text'])
+    return jsonify(text=transcript)
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)
